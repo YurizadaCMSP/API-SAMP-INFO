@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const queryRoute = require('./routes/query.route');
+const queryRoute = require('.src/routes/query.route');
 
 const app = express();
 
