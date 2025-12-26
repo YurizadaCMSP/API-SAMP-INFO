@@ -1,60 +1,38 @@
+// utils/status.util.js
+
 /**
- * Infere o status do servidor baseado no ping e resposta
- * @param {Object} response - Resposta do servidor SA-MP
+ * Infere o status do servidor baseado nos dados e ping
+ * @param {Object} serverData - Dados retornados pelo servidor
  * @param {Number} ping - Tempo de resposta em ms
- * @returns {String} - Status: 'online', 'instável' ou 'offline'
+ * @returns {String} - 'online', 'instável' ou 'offline'
  */
-function inferStatus(response, ping) {
-  if (!response) {
+exports.inferStatus = (serverData, ping) => {
+  if (!serverData) {
     return 'offline';
   }
 
-  // Ping excelente
+  // Se o ping está muito alto, considera instável
+  if (ping > 300) {
+    return 'instável';
+  }
+
+  // Se o ping está bom
   if (ping < 150) {
     return 'online';
   }
 
-  // Ping alto mas aceitável
-  if (ping < 300) {
-    return 'online';
-  }
-
-  // Ping muito alto
-  return 'instável';
-}
+  // Ping médio (150-300ms)
+  return 'online';
+};
 
 /**
- * Retorna uma cor visual para o status
- * @param {String} status 
- * @returns {String} - Código de cor hexadecimal
+ * Determina a cor do status para o frontend
  */
-function getStatusColor(status) {
+exports.getStatusColor = (status) => {
   const colors = {
     'online': '#00ff00',
-    'instável': '#ffff00',
+    'instável': '#ffaa00',
     'offline': '#ff0000'
   };
-
-  return colors[status] || colors.offline;
-}
-
-/**
- * Retorna um emoji para o status
- * @param {String} status 
- * @returns {String} - Emoji
- */
-function getStatusEmoji(status) {
-  const emojis = {
-    'online': '🟢',
-    'instável': '🟡',
-    'offline': '🔴'
-  };
-
-  return emojis[status] || emojis.offline;
-}
-
-module.exports = {
-  inferStatus,
-  getStatusColor,
-  getStatusEmoji
+  return colors[status] || '#999999';
 };
