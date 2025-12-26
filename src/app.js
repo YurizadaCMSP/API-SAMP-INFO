@@ -2,13 +2,13 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const queryRoute = require('.src/routes/query.route');
+const queryRoute = require('./routes/query.route');
 
 const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: '*', // Permite todas as origens
+  origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
   credentials: true
 }));
@@ -60,7 +60,7 @@ app.use((err, req, res, next) => {
   console.error('Erro:', err);
   res.status(500).json({
     error: 'Erro interno do servidor',
-    message: err.message
+    message: process.env.NODE_ENV === 'production' ? 'Erro ao processar requisição' : err.message
   });
 });
 
