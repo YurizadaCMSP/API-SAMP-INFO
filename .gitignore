@@ -6,11 +6,14 @@ package-lock.json
 .env
 .env.local
 .env.production
+.env.development
 
 # Logs
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # OS
 .DS_Store
@@ -21,7 +24,21 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+*.suo
 
 # Build
 dist/
 build/
+
+# AWS
+.elasticbeanstalk/
+*.pem
+*.ppk
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
