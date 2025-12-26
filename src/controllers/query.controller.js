@@ -3,71 +3,133 @@ const sampService = require('../services/samp.service');
 const statusUtil = require('../utils/status.util');
 const validator = require('../utils/validator.util');
 
+const API_INFO = {
+  name: 'SA-MP INFO API',
+  url: 'https://api.sampinfo.qzz.io',
+  version: '2.0.0',
+  description: 'API profissional para consulta de servidores SA-MP em tempo real'
+};
+
 exports.queryServer = async (req, res) => {
+  const startTime = Date.now();
   const { ip, port } = req.query;
 
-  // Validação usando utility
   const validation = validator.validateIpPort(ip, port);
   
   if (!validation.valid) {
     return res.status(400).json({
+      success: false,
       error: 'Parâmetros inválidos',
       message: validation.message,
-      example: '/query?ip=127.0.0.1&port=7777'
+      details: validation.details,
+      example: {
+        url: 'https://api.sampinfo.qzz.io/query?ip=127.0.0.1&port=7777',
+        parameters: {
+          ip: 'Endereço IPv4 válido',
+          port: 'Porta entre 1 e 65535'
+        }
+      },
+      api_info: API_INFO,
+      timestamp: new Date().toISOString()
     });
   }
 
   const portNum = parseInt(port);
 
   try {
-    const startTime = Date.now();
-    
-    // Consulta o servidor SA-MP
     const serverData = await sampService.queryServer(ip, portNum);
-    
     const responseTime = Date.now() - startTime;
-    
-    // Infere o status
     const status = statusUtil.inferStatus(serverData, responseTime);
 
-    // Monta resposta completa
     const response = {
+      success: true,
       online: true,
-      ping: responseTime,
-      status: status,
-      hostname: serverData.hostname || 'N/A',
-      gamemode: serverData.gamemode || 'N/A',
-      mapname: serverData.mapname || 'San Andreas',
+      server: {
+        ip: ip,
+        port: portNum,
+        address: `${ip}:${portNum}`
+      },
+      status: {
+        state: status,
+        ping: responseTime,
+        latency_ms: responseTime,
+        quality: statusUtil.getQualityLevel(responseTime)
+      },
+      info: {
+        hostname: serverData.hostname || 'Unknown Server',
+        gamemode: serverData.gamemode || 'Unknown',
+        mapname: serverData.mapname || 'San Andreas',
+        language: serverData.rules?.language || serverData.rules?.lang || 'Unknown',
+        version: serverData.rules?.version || 'Unknown',
+        weather: serverData.rules?.weather || 'Unknown',
+        worldtime: serverData.rules?.worldtime || 'Unknown',
+        weburl: serverData.rules?.weburl || serverData.rules?.website || null,
+        discord: serverData.rules?.discord || null
+      },
       players: {
         online: serverData.players || 0,
-        maxplayers: serverData.maxplayers || 0,
+        max: serverData.maxplayers || 0,
+        percentage: serverData.maxplayers > 0 
+          ? Math.round((serverData.players / serverData.maxplayers) * 100) 
+          : 0,
         list: serverData.playerList || []
       },
+      security: {
+        password: serverData.password || false,
+        lagcomp: serverData.rules?.lagcomp === 'On',
+      },
       rules: serverData.rules || {},
-      passworded: serverData.password || false,
-      from_cache: serverData.fromCache || false,
+      cache: {
+        from_cache: serverData.fromCache || false,
+        cache_ttl_seconds: parseInt(process.env.CACHE_TTL_SECONDS) || 10
+      },
       meta: {
         queried_at: new Date().toISOString(),
         response_time_ms: responseTime,
-        api_version: '1.0.0'
-      }
+        query_success: true
+      },
+      api_info: API_INFO
     };
 
     res.json(response);
 
   } catch (error) {
-    console.error(`Erro ao consultar ${ip}:${port}:`, error.message);
+    const responseTime = Date.now() - startTime;
     
-    // Servidor offline ou erro de conexão
+    console.error(`❌ Erro ao consultar ${ip}:${portNum}:`, error.message);
+    
     res.json({
+      success: false,
       online: false,
-      status: 'offline',
-      error: 'Falha na consulta',
-      message: error.message || 'Não foi possível conectar ao servidor',
+      server: {
+        ip: ip,
+        port: portNum,
+        address: `${ip}:${portNum}`
+      },
+      status: {
+        state: 'offline',
+        ping: responseTime,
+        latency_ms: responseTime,
+        quality: 'unavailable'
+      },
+      error: {
+        code: 'SERVER_OFFLINE',
+        message: 'Servidor não respondeu',
+        details: error.message || 'Não foi possível estabelecer conexão com o servidor',
+        possible_causes: [
+          'Servidor está offline',
+          'Servidor não está respondendo a queries',
+          'Firewall bloqueando queries UDP',
+          'IP ou porta incorretos',
+          'Servidor em manutenção'
+        ]
+      },
       meta: {
         queried_at: new Date().toISOString(),
-        response_time_ms: Date.now() - (req._startTime || Date.now())
-      }
+        response_time_ms: responseTime,
+        query_success: false
+      },
+      api_info: API_INFO
     });
   }
 };
