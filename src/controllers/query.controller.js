@@ -1,35 +1,23 @@
-// controllers/query.controller.js
+// src/controllers/query.controller.js
 const sampService = require('../services/samp.service');
 const statusUtil = require('../utils/status.util');
+const validator = require('../utils/validator.util');
 
 exports.queryServer = async (req, res) => {
   const { ip, port } = req.query;
 
-  // Validação de parâmetros
-  if (!ip || !port) {
+  // Validação usando utility
+  const validation = validator.validateIpPort(ip, port);
+  
+  if (!validation.valid) {
     return res.status(400).json({
-      error: 'Parâmetros obrigatórios: ip e port',
+      error: 'Parâmetros inválidos',
+      message: validation.message,
       example: '/query?ip=127.0.0.1&port=7777'
     });
   }
 
-  // Validação de IP
-  const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-  if (!ipRegex.test(ip)) {
-    return res.status(400).json({
-      error: 'IP inválido',
-      provided: ip
-    });
-  }
-
-  // Validação de porta
   const portNum = parseInt(port);
-  if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-    return res.status(400).json({
-      error: 'Porta inválida (deve ser entre 1 e 65535)',
-      provided: port
-    });
-  }
 
   try {
     const startTime = Date.now();
@@ -42,7 +30,7 @@ exports.queryServer = async (req, res) => {
     // Infere o status
     const status = statusUtil.inferStatus(serverData, responseTime);
 
-    // Monta resposta
+    // Monta resposta completa
     const response = {
       online: true,
       ping: responseTime,
@@ -56,22 +44,29 @@ exports.queryServer = async (req, res) => {
         list: serverData.playerList || []
       },
       rules: serverData.rules || {},
+      passworded: serverData.password || false,
+      from_cache: serverData.fromCache || false,
       meta: {
         queried_at: new Date().toISOString(),
-        response_time_ms: responseTime
+        response_time_ms: responseTime,
+        api_version: '1.0.0'
       }
     };
 
     res.json(response);
 
   } catch (error) {
+    console.error(`Erro ao consultar ${ip}:${port}:`, error.message);
+    
     // Servidor offline ou erro de conexão
     res.json({
       online: false,
       status: 'offline',
-      error: error.message || 'Servidor não respondeu',
+      error: 'Falha na consulta',
+      message: error.message || 'Não foi possível conectar ao servidor',
       meta: {
-        queried_at: new Date().toISOString()
+        queried_at: new Date().toISOString(),
+        response_time_ms: Date.now() - (req._startTime || Date.now())
       }
     });
   }
