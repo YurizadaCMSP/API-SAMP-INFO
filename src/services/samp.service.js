@@ -1,13 +1,48 @@
 // src/services/samp.service.js
 const dgram = require('dgram');
 
-const TIMEOUT_MS = parseInt(process.env.QUERY_TIMEOUT_MS) || 3000;
+const TIMEOUT_MS = parseInt(process.env.QUERY_TIMEOUT_MS) || 2000;
+
+// Cache simples em memória
+const cache = new Map();
+const CACHE_TTL = parseInt(process.env.CACHE_TTL_SECONDS) || 10;
 
 /**
- * Query SA-MP server via UDP
- * Implementação manual do protocolo SA-MP Query
+ * Query SA-MP server via UDP com cache
  */
-exports.queryServer = (ip, port) => {
+exports.queryServer = async (ip, port) => {
+  const cacheKey = `${ip}:${port}`;
+  
+  // Verifica cache
+  if (cache.has(cacheKey)) {
+    const cached = cache.get(cacheKey);
+    if (Date.now() - cached.timestamp < CACHE_TTL * 1000) {
+      return { ...cached.data, fromCache: true };
+    }
+    cache.delete(cacheKey);
+  }
+
+  // Faz a query
+  const data = await queryServerInfo(ip, port);
+  
+  // Salva no cache
+  cache.set(cacheKey, {
+    data,
+    timestamp: Date.now()
+  });
+
+  // Limpa cache antigo periodicamente
+  if (cache.size > 100) {
+    cleanOldCache();
+  }
+
+  return { ...data, fromCache: false };
+};
+
+/**
+ * Query real ao servidor SA-MP
+ */
+function queryServerInfo(ip, port) {
   return new Promise((resolve, reject) => {
     const client = dgram.createSocket('udp4');
     
@@ -16,150 +51,135 @@ exports.queryServer = (ip, port) => {
       reject(new Error('Timeout: servidor não respondeu'));
     }, TIMEOUT_MS);
 
-    // Construir pacote de query SA-MP
-    const packet = buildSAMPPacket(ip, port);
+    // Construir pacote de query SA-MP (opcode 'i')
+    const packet = buildPacket(ip, port, 'i');
 
     client.on('message', (msg) => {
       clearTimeout(timeout);
       client.close();
 
       try {
-        const data = parseSAMPResponse(msg);
+        const data = parseInfoResponse(msg);
         resolve(data);
       } catch (err) {
-        console.error('Erro ao parsear resposta:', err);
-        reject(new Error('Erro ao interpretar resposta do servidor'));
+        reject(new Error('Erro ao interpretar resposta: ' + err.message));
       }
     });
 
     client.on('error', (err) => {
       clearTimeout(timeout);
       client.close();
-      console.error('Erro no socket UDP:', err);
       reject(new Error('Erro de conexão: ' + err.message));
     });
 
-    try {
-      client.send(packet, port, ip, (err) => {
-        if (err) {
-          clearTimeout(timeout);
-          client.close();
-          reject(new Error('Falha ao enviar pacote: ' + err.message));
-        }
-      });
-    } catch (err) {
-      clearTimeout(timeout);
-      client.close();
-      reject(new Error('Erro ao criar pacote: ' + err.message));
-    }
+    client.send(packet, port, ip, (err) => {
+      if (err) {
+        clearTimeout(timeout);
+        client.close();
+        reject(new Error('Falha ao enviar pacote: ' + err.message));
+      }
+    });
   });
-};
+}
 
 /**
- * Constrói o pacote UDP para query SA-MP (opcode 'i' - info)
+ * Constrói pacote UDP para SA-MP query
  */
-function buildSAMPPacket(ip, port) {
-  try {
-    const ipParts = ip.split('.').map(Number);
-    const portLow = port & 0xFF;
-    const portHigh = (port >> 8) & 0xFF;
+function buildPacket(ip, port, opcode) {
+  const ipParts = ip.split('.').map(Number);
+  const portLow = port & 0xFF;
+  const portHigh = (port >> 8) & 0xFF;
 
-    return Buffer.from([
-      'S'.charCodeAt(0), 'A'.charCodeAt(0), 'M'.charCodeAt(0), 'P'.charCodeAt(0),
-      ipParts[0], ipParts[1], ipParts[2], ipParts[3],
-      portLow, portHigh,
-      'i'.charCodeAt(0) // opcode 'i' para informações básicas
-    ]);
-  } catch (err) {
-    throw new Error('Erro ao construir pacote: ' + err.message);
+  return Buffer.from([
+    'S'.charCodeAt(0), 'A'.charCodeAt(0), 'M'.charCodeAt(0), 'P'.charCodeAt(0),
+    ipParts[0], ipParts[1], ipParts[2], ipParts[3],
+    portLow, portHigh,
+    opcode.charCodeAt(0)
+  ]);
+}
+
+/**
+ * Parse resposta do opcode 'i' (info básica)
+ */
+function parseInfoResponse(buffer) {
+  if (buffer.length < 11) {
+    throw new Error('Resposta muito curta');
+  }
+
+  let offset = 11; // Pula header SAMP + IP + Port + opcode
+
+  // Password (1 byte)
+  const password = buffer.readUInt8(offset);
+  offset += 1;
+
+  // Players (2 bytes)
+  const players = buffer.readUInt16LE(offset);
+  offset += 2;
+
+  // Max players (2 bytes)
+  const maxplayers = buffer.readUInt16LE(offset);
+  offset += 2;
+
+  // Hostname
+  const hostnameLen = buffer.readUInt32LE(offset);
+  offset += 4;
+  const hostname = buffer.toString('utf8', offset, offset + hostnameLen);
+  offset += hostnameLen;
+
+  // Gamemode
+  let gamemode = 'Unknown';
+  let mapname = 'San Andreas';
+
+  if (offset + 4 <= buffer.length) {
+    const gamemodeLen = buffer.readUInt32LE(offset);
+    offset += 4;
+    
+    if (offset + gamemodeLen <= buffer.length) {
+      gamemode = buffer.toString('utf8', offset, offset + gamemodeLen);
+      offset += gamemodeLen;
+
+      // Mapname
+      if (offset + 4 <= buffer.length) {
+        const mapnameLen = buffer.readUInt32LE(offset);
+        offset += 4;
+        
+        if (offset + mapnameLen <= buffer.length) {
+          mapname = buffer.toString('utf8', offset, offset + mapnameLen);
+        }
+      }
+    }
+  }
+
+  return {
+    password: password === 1,
+    players,
+    maxplayers,
+    hostname: hostname || 'Unknown Server',
+    gamemode,
+    mapname,
+    rules: {},
+    playerList: []
+  };
+}
+
+/**
+ * Limpa entradas antigas do cache
+ */
+function cleanOldCache() {
+  const now = Date.now();
+  for (const [key, value] of cache.entries()) {
+    if (now - value.timestamp > CACHE_TTL * 1000) {
+      cache.delete(key);
+    }
   }
 }
 
 /**
- * Parse da resposta SA-MP
+ * Estatísticas do cache
  */
-function parseSAMPResponse(buffer) {
-  try {
-    if (buffer.length < 11) {
-      throw new Error('Resposta muito curta');
-    }
-
-    let offset = 11; // Pula header "SAMP" + IP + Port + opcode
-
-    // Password protected
-    if (offset >= buffer.length) throw new Error('Buffer insuficiente');
-    const password = buffer.readUInt8(offset);
-    offset += 1;
-
-    // Players
-    if (offset + 2 > buffer.length) throw new Error('Buffer insuficiente');
-    const players = buffer.readUInt16LE(offset);
-    offset += 2;
-
-    // Max players
-    if (offset + 2 > buffer.length) throw new Error('Buffer insuficiente');
-    const maxplayers = buffer.readUInt16LE(offset);
-    offset += 2;
-
-    // Hostname length + string
-    if (offset + 4 > buffer.length) throw new Error('Buffer insuficiente');
-    const hostnameLen = buffer.readUInt32LE(offset);
-    offset += 4;
-    
-    if (offset + hostnameLen > buffer.length) throw new Error('Hostname incompleto');
-    const hostname = buffer.toString('utf8', offset, offset + hostnameLen);
-    offset += hostnameLen;
-
-    // Gamemode length + string
-    if (offset + 4 > buffer.length) {
-      return {
-        password: password === 1,
-        players,
-        maxplayers,
-        hostname,
-        gamemode: 'N/A',
-        mapname: 'San Andreas',
-        rules: {},
-        playerList: []
-      };
-    }
-    const gamemodeLen = buffer.readUInt32LE(offset);
-    offset += 4;
-    
-    if (offset + gamemodeLen > buffer.length) throw new Error('Gamemode incompleto');
-    const gamemode = buffer.toString('utf8', offset, offset + gamemodeLen);
-    offset += gamemodeLen;
-
-    // Mapname length + string
-    if (offset + 4 > buffer.length) {
-      return {
-        password: password === 1,
-        players,
-        maxplayers,
-        hostname,
-        gamemode,
-        mapname: 'San Andreas',
-        rules: {},
-        playerList: []
-      };
-    }
-    const mapnameLen = buffer.readUInt32LE(offset);
-    offset += 4;
-    
-    if (offset + mapnameLen > buffer.length) throw new Error('Mapname incompleto');
-    const mapname = buffer.toString('utf8', offset, offset + mapnameLen);
-
-    return {
-      password: password === 1,
-      players,
-      maxplayers,
-      hostname,
-      gamemode,
-      mapname,
-      rules: {},
-      playerList: []
-    };
-  } catch (err) {
-    throw new Error('Erro ao parsear resposta: ' + err.message);
-  }
-  }
+exports.getCacheStats = () => {
+  return {
+    entries: cache.size,
+    ttl: CACHE_TTL
+  };
+};
