@@ -1,15 +1,32 @@
 {
   "name": "samp-info-api",
-  "version": "1.0.0",
-  "description": "API para consulta de servidores SA-MP",
+  "version": "2.0.0",
+  "description": "API profissional para consulta de servidores SA-MP em tempo real",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["samp", "sa-mp", "api", "server-query"],
-  "author": "",
+  "keywords": [
+    "samp",
+    "sa-mp",
+    "san-andreas-multiplayer",
+    "api",
+    "server-query",
+    "gaming",
+    "gta-sa"
+  ],
+  "author": "SA-MP INFO",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seu-usuario/samp-info-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seu-usuario/samp-info-api/issues"
+  },
+  "homepage": "https://api.sampinfo.qzz.io",
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5"
@@ -18,6 +35,7 @@
     "nodemon": "^3.0.1"
   },
   "engines": {
-    "node": ">=18.x"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
