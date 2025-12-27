@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SA-MP Info API - Dashboard Completo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 3rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px 30px;
+      border-radius: 50px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin: 20px 0;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .status-online {
+      background: #10b981;
+      color: white;
+    }
+
+    .status-offline {
+      background: #ef4444;
+      color: white;
+    }
+
+    .status-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .card-icon {
+      font-size: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .card-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #1f2937;
+      margin-bottom: 5px;
+    }
+
+    .card-unit {
+      font-size: 1rem;
+      color: #9ca3af;
+      margin-left: 5px;
+    }
+
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    .section {
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 200px;
+      margin: 20px 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e5e7eb;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 0.85rem;
+    }
+
+    .endpoint-item {
+      background: #f9fafb;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .endpoint-item:hover {
+      background: #f3f4f6;
+      border-left-width: 6px;
+    }
+
+    .endpoint-method {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .endpoint-path {
+      font-family: 'Courier New', monospace;
+      color: #4b5563;
+      font-size: 0.95rem;
+    }
+
+    .endpoint-desc {
+      color: #6b7280;
+      font-size: 0.9rem;
+      margin-top: 8px;
+    }
+
+    .endpoint-example {
+      background: #1f2937;
+      color: #10b981;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+
+    .metric-label {
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+
+    .metric-value {
+      font-weight: 600;
+      color: #1f2937;
+      font-family: 'Courier New', monospace;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: white;
+      font-size: 1.2rem;
+    }
+
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      margin-top: 40px;
+      padding: 20px;
+      opacity: 0.9;
+    }
+
+    .footer a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      transition: opacity 0.3s;
+    }
+
+    .footer a:hover {
+      opacity: 0.8;
+    }
+
+    .error-message {
+      background: #fee2e2;
+      border: 2px solid #ef4444;
+      color: #991b1b;
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+    }
+
+    .info-box-title {
+      font-weight: 600;
+      color: #1e40af;
+      margin-bottom: 5px;
+    }
+
+    .info-box-content {
+      color: #1e40af;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔷 SA-MP Info API</h1>
+      <p>Dashboard Completo de Monitoramento</p>
+    </div>
+
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Carregando dados da API...</p>
+    </div>
+
+    <div id="content" style="display: none;">
+      <!-- Status Badge -->
+      <div style="text-align: center;">
+        <div id="statusBadge" class="status-badge">
+          <div class="status-indicator"></div>
+          <span id="statusText">Carregando...</span>
+        </div>
+      </div>
+
+      <!-- Cards de Métricas Principais -->
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">⏱️</span>
+            <span class="card-title">Tempo Online</span>
+          </div>
+          <div class="card-value">
+            <span id="uptime">--</span>
+          </div>
+          <div class="card-subtitle" id="uptimeSeconds">-- segundos</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">💾</span>
+            <span class="card-title">Uso de Memória</span>
+          </div>
+          <div class="card-value">
+            <span id="memory">--</span>
+            <span class="card-unit">MB</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="memoryProgress">0%</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📦</span>
+            <span class="card-title">Versão</span>
+          </div>
+          <div class="card-value" id="version">--</div>
+          <div class="card-subtitle" id="nodeVersion">Node.js --</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🌍</span>
+            <span class="card-title">Ambiente</span>
+          </div>
+          <div class="card-value" id="environment">--</div>
+          <div class="card-subtitle">Modo de operação</div>
+        </div>
+      </div>
+
+      <!-- Informações da API -->
+      <div class="section">
+        <h2 class="section-title">📋 Informações da API</h2>
+        <div class="metric-row">
+          <span class="metric-label">Nome</span>
+          <span class="metric-value" id="apiName">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">URL</span>
+          <span class="metric-value" id="apiUrl">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Versão da API</span>
+          <span class="metric-value" id="apiVersion">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Descrição</span>
+          <span class="metric-value" id="apiDescription">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Documentação</span>
+          <span class="metric-value"><a href="#" id="apiDocs" target="_blank" style="color: #667eea;">Ver docs</a></span>
+        </div>
+      </div>
+
+      <!-- Rate Limiting -->
+      <div class="section">
+        <h2 class="section-title">🛡️ Rate Limiting & Segurança</h2>
+        <div class="grid">
+          <div>
+            <div class="metric-row">
+              <span class="metric-label">Clientes Ativos</span>
+              <span class="metric-value" id="activeClients">--</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">IPs Bloqueados</span>
+              <span class="metric-value" id="blockedClients">--</span>
+            </div>
+          </div>
+          <div>
+            <div class="metric-row">
+              <span class="metric-label">Janela de Tempo</span>
+              <span class="metric-value"><span id="windowSeconds">--</span> segundos</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Máx. Requisições</span>
+              <span class="metric-value" id="maxRequests">--</span>
+            </div>
+          </div>
+          <div>
+            <div class="metric-row">
+              <span class="metric-label">Duração do Bloqueio</span>
+              <span class="metric-value"><span id="blockDuration">--</span> min</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="info-box">
+          <div class="info-box-title">⚠️ Limites de Uso</div>
+          <div class="info-box-content">
+            A API permite <strong id="maxReqInfo">--</strong> requisições a cada <strong id="windowInfo">--</strong> segundos. 
+            IPs que excederem esse limite serão bloqueados por <strong id="blockInfo">--</strong> minutos.
+          </div>
+        </div>
+      </div>
+
+      <!-- Endpoints -->
+      <div class="section">
+        <h2 class="section-title">📡 Endpoints Disponíveis</h2>
+        
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path">/query</span>
+          </div>
+          <div class="endpoint-desc" id="queryDesc">Consulta informações de um servidor SA-MP</div>
+          <div class="endpoint-desc"><strong>Parâmetros:</strong></div>
+          <div class="endpoint-desc" id="queryParams">• ip: string (required) - IPv4 address<br>• port: number (required) - Port 1-65535</div>
+          <div class="endpoint-example" id="queryExample">GET /query?ip=127.0.0.1&port=7777</div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path">/health</span>
+          </div>
+          <div class="endpoint-desc" id="healthDesc">Retorna dados de saúde da API em JSON</div>
+          <div class="endpoint-example" id="healthExample">GET /health</div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path">/</span>
+          </div>
+          <div class="endpoint-desc" id="statusDesc">Esta página de status</div>
+          <div class="endpoint-example">GET /</div>
+        </div>
+      </div>
+
+      <!-- Métricas do Sistema -->
+      <div class="section">
+        <h2 class="section-title">⚙️ Métricas do Sistema</h2>
+        <div class="metric-row">
+          <span class="metric-label">Última Atualização</span>
+          <span class="metric-value" id="lastUpdate">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Timestamp</span>
+          <span class="metric-value" id="timestamp">--</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Memória Total</span>
+          <span class="metric-value"><span id="totalMemory">--</span> MB</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Percentual de Uso</span>
+          <span class="metric-value"><span id="memoryPercentage">--</span>%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Timeout de Query</span>
+          <span class="metric-value">3 segundos</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Cache TTL</span>
+          <span class="metric-value">10 segundos</span>
+        </div>
+      </div>
+
+      <!-- Teste Rápido -->
+      <div class="section">
+        <h2 class="section-title">🧪 Testar API</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <input type="text" id="testIp" placeholder="IP (ex: 127.0.0.1)" 
+                 style="flex: 2; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;">
+          <input type="number" id="testPort" placeholder="Porta (ex: 7777)" 
+                 style="flex: 1; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;">
+          <button onclick="testQuery()" 
+                  style="padding: 10px 30px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+            Testar
+          </button>
+        </div>
+        <div id="testResult" style="display: none; background: #1f2937; color: #10b981; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.85rem; max-height: 400px; overflow: auto;"></div>
+      </div>
+
+    </div>
+
+    <div id="error" style="display: none;">
+      <div class="error-message">
+        <h3>⚠️ Erro ao carregar status</h3>
+        <p id="errorMessage">Não foi possível conectar à API</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>🚀 Desenvolvido com ❤️ para a comunidade SA-MP</p>
+      <p><a href="https://sampinfo.qzz.io" target="_blank">sampinfo.qzz.io</a> • <a href="https://api.sampinfo.qzz.io" target="_blank">api.sampinfo.qzz.io</a></p>
+      <p style="font-size: 0.9rem; margin-top: 10px; opacity: 0.8;">Auto-refresh a cada 30 segundos</p>
+    </div>
+  </div>
+
+  <script>
+    let healthData = null;
+
+    async function fetchStatus() {
+      try {
+        const response = await fetch('/health');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        healthData = await response.json();
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+        document.getElementById('error').style.display = 'none';
+
+        updateUI(healthData);
+
+      } catch (error) {
+        console.error('Erro ao buscar status:', error);
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('errorMessage').textContent = error.message;
+      }
+    }
+
+    function updateUI(data) {
+      // Status Badge
+      const statusBadge = document.getElementById('statusBadge');
+      const statusText = document.getElementById('statusText');
+      
+      if (data.status === 'healthy') {
+        statusBadge.className = 'status-badge status-online';
+        statusText.textContent = '🟢 API Online';
+      } else {
+        statusBadge.className = 'status-badge status-offline';
+        statusText.textContent = '🔴 API com Problemas';
+      }
+
+      // Cards Principais
+      const uptimeMin = Math.floor((data.system?.uptime_seconds || 0) / 60);
+      const uptimeHours = Math.floor(uptimeMin / 60);
+      const uptimeMinRem = uptimeMin % 60;
+      
+      document.getElementById('uptime').textContent = 
+        uptimeHours > 0 ? `${uptimeHours}h ${uptimeMinRem}m` : `${uptimeMin}m`;
+      document.getElementById('uptimeSeconds').textContent = 
+        `${data.system?.uptime_seconds || 0} segundos`;
+      
+      document.getElementById('memory').textContent = data.system?.memory?.used_mb || '--';
+      document.getElementById('version').textContent = data.api_info?.version || '--';
+      document.getElementById('environment').textContent = data.system?.environment || '--';
+      document.getElementById('nodeVersion').textContent = 
+        `Node.js ${data.system?.node_version || '--'}`;
+
+      // Memória - Progress Bar
+      const memPercent = data.system?.memory?.percentage || 0;
+      const progressBar = document.getElementById('memoryProgress');
+      progressBar.style.width = `${memPercent}%`;
+      progressBar.textContent = `${memPercent}%`;
+      
+      if (memPercent > 80) {
+        progressBar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+      } else if (memPercent > 60) {
+        progressBar.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)';
+      } else {
+        progressBar.style.background = 'linear-gradient(90deg, #667eea, #764ba2)';
+      }
+
+      // API Info
+      document.getElementById('apiName').textContent = data.api_info?.name || '--';
+      document.getElementById('apiUrl').textContent = data.api_info?.url || '--';
+      document.getElementById('apiVersion').textContent = data.api_info?.version || '--';
+      document.getElementById('apiDescription').textContent = data.api_info?.description || '--';
+      
+      const docsLink = document.getElementById('apiDocs');
+      docsLink.href = data.api_info?.documentation || '#';
+      docsLink.textContent = data.api_info?.documentation || '--';
+
+      // Rate Limiting
+      document.getElementById('activeClients').textContent = data.rate_limit?.activeClients || 0;
+      document.getElementById('blockedClients').textContent = data.rate_limit?.blockedClients || 0;
+      document.getElementById('windowSeconds').textContent = data.rate_limit?.windowSeconds || '--';
+      document.getElementById('maxRequests').textContent = data.rate_limit?.maxRequests || '--';
+      document.getElementById('blockDuration').textContent = data.rate_limit?.blockDurationMinutes || '--';
+      
+      document.getElementById('maxReqInfo').textContent = data.rate_limit?.maxRequests || '--';
+      document.getElementById('windowInfo').textContent = data.rate_limit?.windowSeconds || '--';
+      document.getElementById('blockInfo').textContent = data.rate_limit?.blockDurationMinutes || '--';
+
+      // Endpoints
+      if (data.endpoints?.query) {
+        document.getElementById('queryDesc').textContent = 
+          data.endpoints.query.description || 'Consulta informações de um servidor SA-MP';
+        
+        const params = data.endpoints.query.parameters;
+        if (params) {
+          document.getElementById('queryParams').innerHTML = 
+            Object.keys(params).map(key => `• ${key}: ${params[key]}`).join('<br>');
+        }
+        
+        document.getElementById('queryExample').textContent = 
+          data.endpoints.query.example || 'GET /query?ip=127.0.0.1&port=7777';
+      }
+
+      if (data.endpoints?.health) {
+        document.getElementById('healthDesc').textContent = 
+          data.endpoints.health.description || 'Retorna dados de saúde da API';
+        document.getElementById('healthExample').textContent = 
+          `GET ${data.endpoints.health.path || '/health'}`;
+      }
+
+      if (data.endpoints?.status) {
+        document.getElementById('statusDesc').textContent = 
+          data.endpoints.status.description || 'Esta página de status';
+      }
+
+      // Métricas do Sistema
+      const now = new Date(data.timestamp);
+      document.getElementById('lastUpdate').textContent = now.toLocaleString('pt-BR');
+      document.getElementById('timestamp').textContent = data.timestamp || '--';
+      document.getElementById('totalMemory').textContent = data.system?.memory?.total_mb || '--';
+      document.getElementById('memoryPercentage').textContent = data.system?.memory?.percentage || '--';
+    }
+
+    async function testQuery() {
+      const ip = document.getElementById('testIp').value;
+      const port = document.getElementById('testPort').value;
+      const resultDiv = document.getElementById('testResult');
+      
+      if (!ip || !port) {
+        resultDiv.style.display = 'block';
+        resultDiv.style.color = '#ef4444';
+        resultDiv.textContent = 'Por favor, preencha IP e Porta';
+        return;
+      }
+
+      resultDiv.style.display = 'block';
+      resultDiv.style.color = '#f59e0b';
+      resultDiv.textContent = 'Consultando servidor...';
+
+      try {
+        const response = await fetch(`/query?ip=${ip}&port=${port}`);
+        const data = await response.json();
+        
+        resultDiv.style.color = '#10b981';
+        resultDiv.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        resultDiv.style.color = '#ef4444';
+        resultDiv.textContent = `Erro: ${error.message}`;
+      }
+    }
+
+    // Carrega status inicial
+    fetchStatus();
+
+    // Auto-refresh a cada 30 segundos
+    setInterval(fetchStatus, 30000);
+
+    // Permite Enter no input de teste
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('testPort')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') testQuery();
+      });
+    });
+  </script>
+</body>
+</html>
