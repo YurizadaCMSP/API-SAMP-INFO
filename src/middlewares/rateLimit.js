@@ -3,7 +3,7 @@
 class RateLimiter {
   constructor() {
     this.requests = new Map();
-    this.blocked = new Set();
+    this.blocked = new Map();  // ✅ CORRIGIDO: Map em vez de Set
     
     this.WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000;
     this.MAX_REQUESTS = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5;
